@@ -1,5 +1,6 @@
 ﻿using EmployeesDB.Data.Models;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -11,49 +12,30 @@ namespace EmployeesDB
         static private EmployeesContext _context = new EmployeesContext();
         static void Main(string[] args)
         {
-            DeleteTown();
+            SmallDemartments();
         }
-        static string GetEmployeesInformation()
+        static void EmployeesWithSalary()
         {
-            var employees = _context.Employees
-            .OrderBy(e => e.EmployeeId)
-            .Select(e => new
-            {
-                e.FirstName,
-                e.LastName,
-                e.MiddleName,
-                e.JobTitle
-            })
-            .ToList();
-            var sb = new StringBuilder();
-            foreach (var e in employees)
-            {
-                sb.AppendLine($"{e.FirstName} {e.LastName} {e.MiddleName} {e.JobTitle}");
-            }
-            return sb.ToString().TrimEnd();
-        }
-        static string EmployeesWithSalary()
-        {
-            var employees = _context.Employees
-            .Where(e => e.Salary >= 48000)
-            .OrderBy(e => e.LastName)
-            .ToList();
+            IQueryable<Employees> employees = from employee in _context.Employees
+                                              where employee.Salary > 48000
+                                              orderby employee.LastName descending
+                                              select employee;
 
-            var sb = new StringBuilder();
-            foreach (var e in employees)
+            foreach (Employees emp in employees)
             {
-                sb.AppendLine($"{e.FirstName} {e.LastName} {e.MiddleName} {e.JobTitle} {e.Salary}");
+                Console.WriteLine($"{emp.LastName} {emp.FirstName} {emp.MiddleName} - {emp.JobTitle} , Salary: {emp.Salary}");
             }
-            return sb.ToString().TrimEnd();
         }
-  
         private static void SmallDemartments()
         {
-            var departments = _context.Departments
-                .Where(e => e.Employees.Count < 5)
-                .Select(e => e.Name)
-                .ToList();
-            Console.WriteLine(string.Join(", " , departments));
+            IQueryable<Departments> departments = from department in _context.Departments
+                                                  where department.Employees.Count < 5
+                                                  select department;
+
+            foreach (Departments dep in departments)
+            {
+                Console.WriteLine($"{dep.Name}");
+            }
         }
 
         private static void Browns()
@@ -73,10 +55,14 @@ namespace EmployeesDB
             _context.Addresses.Add(address);
             _context.SaveChanges();
 
-            var employees = _context.Employees
-                .Where(e => e.LastName == "Brown")
-                .ToList();
-            employees.ForEach(em => em.Address = address);
+            var browns = (
+                 from employee in _context.Employees
+                 where employee.LastName == "Brown"
+                 select employee
+             ).ToList();
+
+            browns.ForEach(em => em.Address = address);
+
             _context.SaveChanges();
         }
 
@@ -100,22 +86,34 @@ namespace EmployeesDB
 
         private static void UpdatingSalary()
         {
+            
+
             string d = Console.ReadLine();
             int p = int.Parse(Console.ReadLine());
-            var department = _context.Departments
-                .First(e => e.Name == d);
-            foreach(var employee in department.Employees)
+
+            var department = (
+                from dep in _context.Departments
+                where dep.Name == d
+                select dep
+            ).First();
+
+            foreach (var employee in department.Employees)
             {
-                employee.Salary *= ( 100 + p / 100);
+                employee.Salary *= (100 + p / 100);
             }
             _context.SaveChanges();
         }
         //????
         private static void DeleteTown()
-        {
+        { 
             string deletetown = Console.ReadLine();
-            var town = _context.Towns
-                .First(t => t.Name == deletetown);
+            var town = (
+                from t in _context.Towns
+                where t.Name == deletetown
+                select t
+            ).First();
+
+            _context.Entry(town).Collection(t => t.Addresses).Load();
             _context.Towns.Remove(town);
             _context.SaveChanges();
         }
